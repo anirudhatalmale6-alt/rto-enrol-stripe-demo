@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillPath RTO — Course Enrolment</title>
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+  :root{
+    --brand:#1a3d6d; --brand-2:#2f74c0; --accent:#00b386;
+    --ink:#12233b; --muted:#64748b; --line:#e4e9f0; --bg:#f4f7fb;
+    --danger:#dc3545; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.5}
+  .topbar{background:var(--brand);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:12px}
+  .topbar .logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--brand-2));
+                display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
+  .topbar h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.2px}
+  .topbar .tag{margin-left:auto;font-size:12px;opacity:.85;background:rgba(255,255,255,.12);padding:5px 10px;border-radius:20px}
+  .wrap{max-width:920px;margin:26px auto;padding:0 18px}
+
+  .steps{display:flex;gap:8px;margin-bottom:22px}
+  .steps .s{flex:1;text-align:center;font-size:12px;color:var(--muted);position:relative;padding-top:34px}
+  .steps .s .dot{position:absolute;top:0;left:50%;transform:translateX(-50%);width:26px;height:26px;border-radius:50%;
+                 background:#fff;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--muted)}
+  .steps .s.active .dot{background:var(--brand-2);border-color:var(--brand-2);color:#fff}
+  .steps .s.done .dot{background:var(--accent);border-color:var(--accent);color:#fff}
+  .steps .s.active{color:var(--brand);font-weight:700}
+  .steps .s::after{content:"";position:absolute;top:13px;left:-50%;width:100%;height:2px;background:var(--line);z-index:-0}
+  .steps .s:first-child::after{display:none}
+  .steps .s.done::after,.steps .s.active::after{background:var(--accent)}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px;box-shadow:0 4px 20px rgba(20,40,80,.05)}
+  .card h2{margin:0 0 4px;font-size:20px}
+  .card .sub{color:var(--muted);font-size:14px;margin-bottom:20px}
+
+  label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+  input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-size:15px;background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(47,116,192,.15)}
+  .row{display:flex;gap:14px}.row>div{flex:1}
+  .courses{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+  .course{border:1px solid var(--line);border-radius:10px;padding:14px;cursor:pointer;transition:.15s}
+  .course:hover{border-color:var(--brand-2)}
+  .course.sel{border-color:var(--brand-2);background:#f0f6ff;box-shadow:0 0 0 2px rgba(47,116,192,.2)}
+  .course .name{font-weight:700;font-size:15px}
+  .course .meta{font-size:12px;color:var(--muted);margin-top:3px}
+  .course .price{font-weight:800;color:var(--brand);margin-top:8px}
+
+  .summary{background:#f7fafc;border:1px dashed var(--line);border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:14px}
+  .summary .line{display:flex;justify-content:space-between;padding:3px 0}
+  .summary .total{border-top:1px solid var(--line);margin-top:8px;padding-top:10px;font-weight:800;font-size:16px}
+
+  #card-element{padding:13px 12px;border:1px solid var(--line);border-radius:9px;background:#fff}
+  #card-element.StripeElement--focus{border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(47,116,192,.15)}
+  .card-errors{color:var(--danger);font-size:13px;margin-top:8px;min-height:18px}
+  .secure{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-top:12px}
+
+  .btns{display:flex;gap:12px;margin-top:24px}
+  .btn{padding:12px 22px;border-radius:9px;border:none;font-size:15px;font-weight:700;cursor:pointer}
+  .btn-primary{background:var(--brand-2);color:#fff;flex:1}
+  .btn-primary:hover{background:var(--brand)}
+  .btn-primary:disabled{opacity:.6;cursor:not-allowed}
+  .btn-ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+
+  .note{font-size:12px;color:var(--muted);margin-top:14px;text-align:center}
+  .badge-test{display:inline-block;background:#fff3cd;color:#8a6d00;border:1px solid #ffe69c;font-size:11px;
+              font-weight:700;padding:3px 8px;border-radius:6px;margin-left:8px}
+
+  /* processing / success */
+  .flow{list-style:none;padding:0;margin:20px 0}
+  .flow li{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;font-size:14px;background:#fff;transition:.3s}
+  .flow li .ic{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .flow li.ok{border-color:var(--accent);background:#f0fdf8}
+  .flow li.ok .ic{background:var(--accent);border-color:var(--accent);color:#fff}
+  .flow li.run .ic{border-color:var(--brand-2);border-top-color:transparent;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .success-hero{text-align:center;padding:10px 0 4px}
+  .success-hero .check{width:64px;height:64px;border-radius:50%;background:var(--accent);color:#fff;
+       display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 12px}
+  .kv{background:#f7fafc;border-radius:10px;padding:14px 16px;font-size:13px;margin-top:16px}
+  .kv .line{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line)}
+  .kv .line:last-child{border-bottom:none}
+  .kv .k{color:var(--muted)} .kv .v{font-weight:600;font-family:monospace}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">S</div>
+    <h1>SkillPath Training — Course Enrolment</h1>
+    <span class="tag">Powered by WordPress + Stripe + RTO Data Cloud</span>
+  </div>
+
+  <div class="wrap">
+    <div class="steps">
+      <div class="s active" data-step="1"><span class="dot">1</span>Course</div>
+      <div class="s" data-step="2"><span class="dot">2</span>Your details</div>
+      <div class="s" data-step="3"><span class="dot">3</span>Payment</div>
+      <div class="s" data-step="4"><span class="dot">4</span>Confirmed</div>
+    </div>
+
+    <!-- STEP 1 -->
+    <div class="card" id="step1">
+      <h2>Choose your course</h2>
+      <div class="sub">Select a nationally recognised course, your location and a training date.</div>
+      <div class="courses" id="courses"></div>
+      <div class="row" style="margin-top:18px">
+        <div>
+          <label>Location</label>
+          <select id="location">
+            <option>Sydney — Parramatta Campus</option>
+            <option>Melbourne — CBD Campus</option>
+            <option>Brisbane — South Bank Campus</option>
+            <option>Perth — Northbridge Campus</option>
+          </select>
+        </div>
+        <div>
+          <label>Training date</label>
+          <select id="tdate">
+            <option>Mon 18 Aug 2026 — 9:00am</option>
+            <option>Mon 15 Sep 2026 — 9:00am</option>
+            <option>Mon 13 Oct 2026 — 9:00am</option>
+          </select>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn btn-primary" onclick="go(2)">Continue</button>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="card hidden" id="step2">
+      <h2>Enrolment details</h2>
+      <div class="sub">These details create the student record in RTO Data Cloud.</div>
+      <div class="row">
+        <div><label>First name</label><input id="fname" value="Jordan"></div>
+        <div><label>Last name</label><input id="lname" value="Mitchell"></div>
+      </div>
+      <div class="row">
+        <div><label>Email</label><input id="email" value="jordan.mitchell@example.com"></div>
+        <div><label>Mobile</label><input id="phone" value="0412 345 678"></div>
+      </div>
+      <div class="row">
+        <div><label>Unique Student Identifier (USI)</label><input id="usi" value="A1B2C3D4E5"></div>
+        <div><label>Date of birth</label><input id="dob" type="date" value="1998-04-12"></div>
+      </div>
+      <div class="btns">
+        <button class="btn btn-ghost" onclick="go(1)">Back</button>
+        <button class="btn btn-primary" onclick="go(3)">Continue to payment</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="card hidden" id="step3">
+      <h2>Payment <span class="badge-test">STRIPE TEST MODE</span></h2>
+      <div class="sub">Enter your card securely below — payment is embedded in the form (no redirect).</div>
+      <div class="summary" id="paySummary"></div>
+
+      <label>Card details</label>
+      <div id="card-element"></div>
+      <div class="card-errors" id="card-errors" role="alert"></div>
+
+      <div class="secure">
+        🔒 Card data is sent directly to Stripe over TLS and tokenised — it never touches the WordPress server (PCI-DSS SAQ-A).
+      </div>
+
+      <div class="btns">
+        <button class="btn btn-ghost" onclick="go(2)">Back</button>
+        <button class="btn btn-primary" id="payBtn" onclick="pay()">Pay <span id="payAmt"></span> &amp; enrol</button>
+      </div>
+      <div class="note">Test card: 4242 4242 4242 4242 · any future expiry · any CVC · any postcode</div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="card hidden" id="step4">
+      <div class="success-hero">
+        <div class="check">✓</div>
+        <h2>Enrolment confirmed</h2>
+        <div class="sub">Payment processed and student record synced to RTO Data Cloud.</div>
+      </div>
+      <ul class="flow" id="flow">
+        <li data-f="1"><span class="ic">1</span> Processing payment with Stripe</li>
+        <li data-f="2"><span class="ic">2</span> Creating enrolment in RTO Data Cloud</li>
+        <li data-f="3"><span class="ic">3</span> Recording payment against the enrolment</li>
+        <li data-f="4"><span class="ic">4</span> Granting online learning access</li>
+        <li data-f="5"><span class="ic">5</span> Sending confirmation email</li>
+      </ul>
+      <div class="kv" id="receipt"></div>
+      <div class="btns"><button class="btn btn-primary" onclick="location.reload()">Start a new enrolment</button></div>
+    </div>
+  </div>
+
+<script>
+/* ---- Demo data ---- */
+const COURSES=[
+  {id:"WHS",name:"Work Health & Safety (BSBWHS411)",meta:"1 day · Nationally recognised",price:349},
+  {id:"RSA",name:"Provide Responsible Service of Alcohol",meta:"Half day · SITHFAB021",price:129},
+  {id:"WAH",name:"Work Safely at Heights (RIIWHS204E)",meta:"1 day · Certificate",price:295},
+  {id:"FA",name:"Provide First Aid (HLTAID011)",meta:"1 day · Includes CPR",price:189},
+];
+let selected=COURSES[0];
+
+const cg=document.getElementById('courses');
+COURSES.forEach((c,i)=>{
+  const d=document.createElement('div');
+  d.className='course'+(i===0?' sel':'');
+  d.innerHTML=`<div class="name">${c.name}</div><div class="meta">${c.meta}</div><div class="price">$${c.price}.00 AUD</div>`;
+  d.onclick=()=>{selected=c;document.querySelectorAll('.course').forEach(e=>e.classList.remove('sel'));d.classList.add('sel')};
+  cg.appendChild(d);
+});
+
+/* ---- Stripe Elements (real, using Stripe's public sample test key) ---- */
+const stripe=Stripe('pk_test_TYooMQauvdEDq54NiTphI7jx');
+const elements=stripe.elements();
+const cardStyle={base:{fontSize:'16px',color:'#12233b','::placeholder':{color:'#94a3b8'}}};
+const card=elements.create('card',{style:cardStyle,hidePostalCode:true});
+let cardMounted=false;
+document.getElementById('card-errors');
+card.on('change',e=>{document.getElementById('card-errors').textContent=e.error?e.error.message:''});
+
+/* ---- Navigation ---- */
+function go(n){
+  for(let i=1;i<=4;i++)document.getElementById('step'+i).classList.toggle('hidden',i!==n);
+  document.querySelectorAll('.steps .s').forEach(s=>{
+    const st=+s.dataset.step;
+    s.classList.toggle('active',st===n);
+    s.classList.toggle('done',st<n);
+  });
+  if(n===3){
+    if(!cardMounted){card.mount('#card-element');cardMounted=true;}
+    const loc=document.getElementById('location').value, dt=document.getElementById('tdate').value;
+    document.getElementById('paySummary').innerHTML=
+      `<div class="line"><span>${selected.name}</span><span>$${selected.price}.00</span></div>`+
+      `<div class="line"><span>${loc}</span><span></span></div>`+
+      `<div class="line"><span>${dt}</span><span></span></div>`+
+      `<div class="line total"><span>Total due</span><span>$${selected.price}.00 AUD</span></div>`;
+    document.getElementById('payAmt').textContent='$'+selected.price;
+  }
+  window.scrollTo(0,0);
+}
+
+/* ---- Payment + backend workflow simulation ---- */
+async function pay(){
+  const btn=document.getElementById('payBtn');
+  btn.disabled=true;btn.textContent='Processing…';
+  // Real Stripe tokenisation of the entered card (createPaymentMethod)
+  const {error,paymentMethod}=await stripe.createPaymentMethod({type:'card',card:card,
+    billing_details:{name:document.getElementById('fname').value+' '+document.getElementById('lname').value,
+                     email:document.getElementById('email').value}});
+  if(error){
+    document.getElementById('card-errors').textContent=error.message;
+    btn.disabled=false;btn.textContent='Pay $'+selected.price+' & enrol';
+    return;
+  }
+  // In production: pm.id is sent to WordPress REST endpoint which confirms a PaymentIntent
+  // server-side, then calls the RTO Data Cloud API. Here we visualise that server flow.
+  go(4);
+  runFlow(paymentMethod);
+}
+
+function runFlow(pm){
+  const items=[...document.querySelectorAll('#flow li')];
+  let i=0;
+  const step=()=>{
+    if(i>0)items[i-1].classList.remove('run'),items[i-1].classList.add('ok'),items[i-1].querySelector('.ic').textContent='✓';
+    if(i<items.length){items[i].classList.add('run');i++;setTimeout(step,850);}
+    else finish(pm);
+  };
+  step();
+}
+
+function finish(pm){
+  const enrolId='ENR-'+ (100000+Math.floor((pm.created||Date.parse(document.getElementById('dob').value))%900000));
+  const rtoId='RTO-STU-'+(pm.card?pm.card.last4:'0000')+'-'+(new Date().getFullYear());
+  document.getElementById('receipt').innerHTML=
+    `<div class="line"><span class="k">Student</span><span class="v">${document.getElementById('fname').value} ${document.getElementById('lname').value}</span></div>`+
+    `<div class="line"><span class="k">Course</span><span class="v">${selected.id}</span></div>`+
+    `<div class="line"><span class="k">Amount paid</span><span class="v">$${selected.price}.00 AUD</span></div>`+
+    `<div class="line"><span class="k">Stripe payment method</span><span class="v">pm_••••_${pm.card?pm.card.last4:'4242'}</span></div>`+
+    `<div class="line"><span class="k">RTO Data Cloud enrolment</span><span class="v">${enrolId}</span></div>`+
+    `<div class="line"><span class="k">Student ID</span><span class="v">${rtoId}</span></div>`+
+    `<div class="line"><span class="k">Online learning</span><span class="v">Access granted ✓</span></div>`+
+    `<div class="line"><span class="k">Confirmation email</span><span class="v">Sent ✓</span></div>`;
+}
+</script>
+</body>
+</html>
